@@ -215,6 +215,7 @@ public class BlogController extends BaseController {
 	public RespBody create(@RequestParam("url") String url,
 			@RequestParam(value = "spaceId", required = false) Long spaceId,
 			@RequestParam(value = "dirId", required = false) Long dirId,
+			@RequestParam(value = "pid", required = false) Long pid,
 			@RequestParam(value = "privated", required = false) Boolean privated,
 			@RequestParam(value = "opened", required = false) Boolean opened,
 			@RequestParam(value = "editor", required = false) String editor,
@@ -263,6 +264,10 @@ public class BlogController extends BaseController {
 
 		if (opened != null) {
 			blog.setOpened(opened);
+		}
+
+		if (pid != null) {
+			blog.setPid(pid);
 		}
 
 		Blog blog2 = blogRepository.saveAndFlush(blog);
@@ -359,26 +364,26 @@ public class BlogController extends BaseController {
 		}
 	}
 
-	@RequestMapping(value = "list", method = RequestMethod.GET)
-	@ResponseBody
-	public RespBody list(@SortDefault(value = "id", direction = Direction.DESC) Sort sort) {
-
-		if (!isSuper()) {
-			return RespBody.failed("没有权限查看全部博文列表!");
-		}
-
-		List<Blog> blogs = blogRepository.findByStatusNot(Status.Deleted, sort);
-		blogs.forEach(b -> b.setContent(null));
-
-		return RespBody.succeed(blogs);
-	}
+	//	@RequestMapping(value = "list", method = RequestMethod.GET)
+	//	@ResponseBody
+	//	public RespBody list(@SortDefault(value = "id", direction = Direction.DESC) Sort sort) {
+	//
+	//		if (!isSuper()) {
+	//			return RespBody.failed("没有权限查看全部博文列表!");
+	//		}
+	//
+	//		List<Blog> blogs = blogRepository.findByStatusNot(Status.Deleted, sort);
+	//		blogs.forEach(b -> b.setContent(null));
+	//
+	//		return RespBody.succeed(blogs);
+	//	}
 
 	@RequestMapping(value = "listMy", method = RequestMethod.GET)
 	@ResponseBody
 	public RespBody listMy(@SortDefault(value = "id", direction = Direction.DESC) Sort sort) {
 
-		List<Blog> blogs = blogRepository.findByStatusNot(Status.Deleted, sort).stream().filter(b -> hasAuth(b))
-				.peek(b -> {
+		List<Blog> blogs = blogRepository.findByPidNotNullAndStatusNot(Status.Deleted, sort).stream()
+				.filter(b -> hasAuth(b)).peek(b -> {
 					b.setContent(null);
 					b.setBlogAuthorities(null);
 					b.setUpdater(null);
@@ -625,7 +630,7 @@ public class BlogController extends BaseController {
 		if (!isSuperOrCreator(blog.getCreator().getUsername())) {
 			return RespBody.failed("您没有权限删除该博文!");
 		}
-		
+
 		fileService.removeFileByAtId(blog.getUuid());
 
 		blog.setStatus(Status.Deleted);
@@ -636,7 +641,27 @@ public class BlogController extends BaseController {
 
 		log(Action.Delete, Target.Blog, id, blog.getTitle());
 
+		// check看被删除博文的父级博文是否还存在子级博文
+		Long pid = blog.getPid();
+		if (pid != null) {
+			long cnt = blogRepository.countByPid(pid);
+			blogRepository.updateHasChild(cnt > 0, pid);
+		}
+
+		// 被删除博文的子级博文也都需要删除
+		deleteChilds(blog);
+
 		return RespBody.succeed(id);
+	}
+
+	// 级联删除子级博文
+	private void deleteChilds(Blog blog) {
+		List<Blog> childs = blogRepository.findByPidAndStatusNot(blog.getId(), Status.Deleted);
+		childs.forEach(child -> {
+			deleteChilds(child);
+			blogRepository.updateStatus(Status.Deleted, child.getId());
+		});
+
 	}
 
 	@RequestMapping(value = "get", method = RequestMethod.GET)
@@ -1349,7 +1374,7 @@ public class BlogController extends BaseController {
 			if (!isSuperOrCreator(comment.getCreator().getUsername())) {
 				return RespBody.failed("您没有权限删除该博文评论!");
 			}
-			
+
 			fileService.removeFileByAtId(comment.getUuid());
 
 			comment.setStatus(Status.Deleted);
@@ -2894,5 +2919,67 @@ public class BlogController extends BaseController {
 	public RespBody checkLock(@RequestParam("id") Long id) {
 
 		return RespBody.succeed(blogLockService.isRealLock(id));
+	}
+
+	@GetMapping("list/by/pid")
+	@ResponseBody
+	public RespBody listByPid(@RequestParam("pid") Long pid,
+			@SortDefault(value = "id", direction = Direction.DESC) Sort sort) {
+
+		Blog blog = blogRepository.findOne(pid);
+
+		if (!hasAuth(blog)) {
+			return RespBody.failed("权限不足！");
+		}
+
+		List<Blog> blogs = blogRepository.findByPidAndStatusNot(pid, Status.Deleted, sort);
+
+		return RespBody.succeed(blogs);
+	}
+
+	@PostMapping("pid/update")
+	@ResponseBody
+	public RespBody updatePid(@RequestParam("id") Long id, @RequestParam(value = "pid", required = false) Long pid) {
+
+		Blog blog = blogRepository.findOne(id);
+
+		if (blog == null) {
+			return RespBody.failed("对应博文不存在！");
+		}
+
+		if (!hasAuth(blog)) {
+			return RespBody.failed("权限不足！");
+		}
+
+		if (pid != null) {
+			Blog blogP = blogRepository.findOne(pid);
+			if (blogP == null) {
+				return RespBody.failed("对应博文不存在！");
+			}
+
+			if (!hasAuth(blogP)) {
+				return RespBody.failed("权限不足！");
+			}
+		}
+
+		Long pidO = blog.getPid();
+
+		int row = blogRepository.updatePid(pid, id);
+
+		if (row == 1) {
+
+			if (pidO != null) { // 原来父博文检查看是否还存在子级博文
+				long cnt = blogRepository.countByPid(pidO);
+				blogRepository.updateHasChild(cnt > 0, pidO);
+			}
+
+			if (pid != null) { // 新的父博文设置存在子级博文
+				blogRepository.updateHasChild(true, pid);
+			}
+
+			return RespBody.succeed();
+		}
+
+		return RespBody.failed();
 	}
 }

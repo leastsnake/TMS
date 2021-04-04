@@ -31,14 +31,16 @@ import com.lhjz.portal.pojo.Enum.Status;
  */
 public interface BlogRepository extends JpaRepository<Blog, Long> {
 
-	Page<Blog> findByStatusNot(Status status, Pageable pageable);
+	//	Page<Blog> findByStatusNot(Status status, Pageable pageable);
 
 	List<Blog> findByStatusNotAndTags_nameIn(Status status, List<String> tags, Sort sort);
 
-	List<Blog> findByStatusNot(Status status, Sort sort);
+	//	List<Blog> findByStatusNot(Status status, Sort sort);
 
-	Page<Blog> findByTitleContainingIgnoreCaseOrContentContainingIgnoreCase(String searchT, String searchC,
-			Pageable pageable);
+	List<Blog> findByPidNotNullAndStatusNot(Status status, Sort sort);
+
+	//	Page<Blog> findByTitleContainingIgnoreCaseOrContentContainingIgnoreCase(String searchT, String searchC,
+	//			Pageable pageable);
 
 	List<Blog> findByStatusNotAndTitleContainingIgnoreCaseOrStatusNotAndContentContainingIgnoreCase(Status status,
 			String searchT, Status status2, String searchC, Sort sort);
@@ -47,6 +49,10 @@ public interface BlogRepository extends JpaRepository<Blog, Long> {
 			User creator, Status status, String searchT, User creator2, Status status2, String searchC, Sort sort);
 
 	List<Blog> findByCreatorAndStatusNot(User creator, Status status, Sort sort);
+
+	List<Blog> findByPidAndStatusNot(Long pid, Status status, Sort sort);
+
+	List<Blog> findByPidAndStatusNot(Long pid, Status status);
 
 	List<Blog> findByStatusNotAndTitleContainingIgnoreCaseAndOpenedTrueOrStatusNotAndContentContainingIgnoreCaseAndOpenedTrue(
 			Status status, String searchT, Status status2, String searchC, Sort sort);
@@ -92,6 +98,9 @@ public interface BlogRepository extends JpaRepository<Blog, Long> {
 	@Query(value = "SELECT COUNT(*) as cnt FROM blog WHERE status <> 'Deleted'", nativeQuery = true)
 	long countBlogs();
 
+	@Query(value = "SELECT COUNT(*) as cnt FROM blog WHERE status <> 'Deleted' ADN pid = :pid", nativeQuery = true)
+	long countByPid(@Param("pid") Long pid);
+
 	@Transactional
 	@Modifying
 	@Query("update Blog b set b.readCnt = ?1 where b.id = ?2")
@@ -101,7 +110,7 @@ public interface BlogRepository extends JpaRepository<Blog, Long> {
 	@Modifying
 	@Query("update Blog b set b.privated = ?1, b.opened = ?2 where b.id = ?3")
 	int updatePrivatedAndOpened(Boolean privated, Boolean opened, Long id);
-	
+
 	@Transactional
 	@Modifying
 	@Query("update Blog b set b.fileReadonly = ?1 where b.id = ?2")
@@ -147,6 +156,21 @@ public interface BlogRepository extends JpaRepository<Blog, Long> {
 	@Query("update Blog b set b.locker = ?1, b.lockDate = ?2 where b.id = ?3")
 	int updateLock(User locker, Date lockDate, Long id);
 
+	@Transactional
+	@Modifying
+	@Query("update Blog b set b.hasChild = ?1 where b.id = ?2")
+	int updateHasChild(Boolean hasChild, Long id);
+
+	@Transactional
+	@Modifying
+	@Query("update Blog b set b.pid = ?1 where b.id = ?2")
+	int updatePid(Long pid, Long id);
+
+	@Transactional
+	@Modifying
+	@Query("update Blog b set b.status = ?1 where b.id = ?2")
+	int updateStatus(Status status, Long id);
+
 	Page<Blog> findByStatusNotAndOpenedTrue(Status status, Pageable pageable);
 
 	Page<Blog> findByStatusNotAndOpenedTrueAndSpace(Status status, Space space, Pageable pageable);
@@ -160,7 +184,7 @@ public interface BlogRepository extends JpaRepository<Blog, Long> {
 	Blog findTopByStatusNotAndOpenedTrueAndSpaceAndIdGreaterThanOrderByIdAsc(Status status, Space space, Long id);
 
 	Blog findTopByStatusNotAndShareId(Status status, String shareId);
-	
+
 	Blog findTopByUuid(String uuid);
-	
+
 }
