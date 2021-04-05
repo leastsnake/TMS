@@ -37,7 +37,7 @@ public interface BlogRepository extends JpaRepository<Blog, Long> {
 
 	//	List<Blog> findByStatusNot(Status status, Sort sort);
 
-	List<Blog> findByPidNotNullAndStatusNot(Status status, Sort sort);
+	List<Blog> findByPidIsNullAndStatusNot(Status status, Sort sort);
 
 	//	Page<Blog> findByTitleContainingIgnoreCaseOrContentContainingIgnoreCase(String searchT, String searchC,
 	//			Pageable pageable);
@@ -98,7 +98,7 @@ public interface BlogRepository extends JpaRepository<Blog, Long> {
 	@Query(value = "SELECT COUNT(*) as cnt FROM blog WHERE status <> 'Deleted'", nativeQuery = true)
 	long countBlogs();
 
-	@Query(value = "SELECT COUNT(*) as cnt FROM blog WHERE status <> 'Deleted' ADN pid = :pid", nativeQuery = true)
+	@Query(value = "SELECT COUNT(*) as cnt FROM blog WHERE status <> 'Deleted' AND pid = :pid", nativeQuery = true)
 	long countByPid(@Param("pid") Long pid);
 
 	@Transactional

@@ -3,6 +3,8 @@
  */
 package com.lhjz.portal.controller;
 
+import static org.mockito.Matchers.longThat;
+
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
@@ -272,6 +274,10 @@ public class BlogController extends BaseController {
 
 		Blog blog2 = blogRepository.saveAndFlush(blog);
 
+		if (pid != null) {
+			blogRepository.updateHasChild(true, pid);
+		}
+
 		log(Action.Create, Target.Blog, blog2.getId(), blog2.getTitle());
 
 		final String href = url + "#/blog/" + blog2.getId();
@@ -382,7 +388,7 @@ public class BlogController extends BaseController {
 	@ResponseBody
 	public RespBody listMy(@SortDefault(value = "id", direction = Direction.DESC) Sort sort) {
 
-		List<Blog> blogs = blogRepository.findByPidNotNullAndStatusNot(Status.Deleted, sort).stream()
+		List<Blog> blogs = blogRepository.findByPidIsNullAndStatusNot(Status.Deleted, sort).stream()
 				.filter(b -> hasAuth(b)).peek(b -> {
 					b.setContent(null);
 					b.setBlogAuthorities(null);
@@ -1422,6 +1428,13 @@ public class BlogController extends BaseController {
 		blogRepository.updateSpaceAndDir(space, dir, id);
 
 		//		Blog blog2 = blogRepository.saveAndFlush(blog);
+
+		Long pid = blog.getPid();
+		if (pid != null) {
+			blogRepository.updatePid(null, id);
+			long cnt = blogRepository.countByPid(pid);
+			blogRepository.updateHasChild(cnt > 0, pid);
+		}
 
 		String val = StringUtil.EMPTY;
 
