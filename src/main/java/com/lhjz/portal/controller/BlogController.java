@@ -1418,14 +1418,12 @@ public class BlogController extends BaseController {
 		}
 
 		Space space = sid != null ? spaceRepository.findOne(sid) : null;
-		//		blog.setSpace(space);
 
 		Dir dir = did != null ? dirRepository.findOne(did) : null;
-		//		blog.setDir(dir);
 
 		blogRepository.updateSpaceAndDir(space, dir, id);
 
-		//		Blog blog2 = blogRepository.saveAndFlush(blog);
+		updateSpaceAndDir(space, dir, id);
 
 		Long pid = blog.getPid();
 		if (pid != null) {
@@ -1449,6 +1447,16 @@ public class BlogController extends BaseController {
 		em.detach(blog);
 
 		return RespBody.succeed(blogRepository.findOne(id));
+	}
+
+	private void updateSpaceAndDir(Space space, Dir dir, Long id) {
+
+		List<Blog> blogs = blogRepository.findByPidAndStatusNot(id, Status.Deleted);
+		blogs.forEach(blog -> {
+			blogRepository.updateSpaceAndDir(space, dir, blog.getId());
+			updateSpaceAndDir(space, dir, blog.getId());
+		});
+
 	}
 
 	@RequestMapping(value = "privated/update", method = RequestMethod.POST)
@@ -2943,7 +2951,52 @@ public class BlogController extends BaseController {
 			return RespBody.failed("权限不足！");
 		}
 
-		List<Blog> blogs = blogRepository.findByPidAndStatusNot(pid, Status.Deleted, sort);
+		List<Blog> blogs = blogRepository.findByPidAndStatusNot(pid, Status.Deleted, sort).stream()
+				.filter(b -> hasAuth(b)).peek(b -> {
+					b.setContent(null);
+					b.setBlogAuthorities(null);
+					b.setUpdater(null);
+
+					User creator = b.getCreator();
+					if (creator != null) {
+						User user2 = new User();
+						user2.setUsername(creator.getUsername());
+						user2.setAuthorities(null);
+						user2.setStatus(null);
+						b.setCreator(user2);
+					}
+
+					b.setCreateDate(null);
+					b.setOpenEdit(null);
+					b.setOpened(null);
+					b.setReadCnt(null);
+					b.setTags(null);
+					b.setType(null);
+
+					Dir dir = b.getDir();
+					if (dir != null) {
+						Dir dir2 = new Dir();
+						dir2.setId(dir.getId());
+						dir2.setOpened(null);
+						dir2.setPrivated(null);
+						dir2.setStatus(null);
+						b.setDir(dir2);
+					}
+
+					Space space = b.getSpace();
+					if (space != null) {
+						Space space2 = new Space();
+						space2.setId(space.getId());
+						space2.setDirs(null);
+						space2.setOpened(null);
+						space2.setPrivated(null);
+						space2.setSpaceAuthorities(null);
+						space2.setStatus(null);
+						space2.setType(null);
+						b.setSpace(space2);
+					}
+
+				}).collect(Collectors.toList());
 
 		return RespBody.succeed(blogs);
 	}
