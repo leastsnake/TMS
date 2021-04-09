@@ -1406,7 +1406,8 @@ public class BlogController extends BaseController {
 	@RequestMapping(value = "space/update", method = RequestMethod.POST)
 	@ResponseBody
 	public RespBody updateSpace(@RequestParam("id") Long id, @RequestParam(value = "sid", required = false) Long sid,
-			@RequestParam(value = "did", required = false) Long did) {
+			@RequestParam(value = "did", required = false) Long did,
+			@RequestParam(value = "pid", required = false) Long pid) {
 
 		Blog blog = blogRepository.findOne(id);
 
@@ -1421,15 +1422,15 @@ public class BlogController extends BaseController {
 
 		Dir dir = did != null ? dirRepository.findOne(did) : null;
 
-		blogRepository.updateSpaceAndDir(space, dir, id);
+		blogRepository.updateSpaceAndDirAndPid(space, dir, pid, id);
 
 		updateSpaceAndDir(space, dir, id);
 
-		Long pid = blog.getPid();
-		if (pid != null) {
-			blogRepository.updatePid(null, id);
-			long cnt = blogRepository.countByPid(pid);
-			blogRepository.updateHasChild(cnt > 0, pid);
+		Long pidOld = blog.getPid();
+		if (pidOld != null) {
+			//			blogRepository.updatePid(null, id);
+			long cnt = blogRepository.countByPid(pidOld);
+			blogRepository.updateHasChild(cnt > 0, pidOld);
 		}
 
 		String val = StringUtil.EMPTY;
@@ -2879,7 +2880,7 @@ public class BlogController extends BaseController {
 
 		Stream.of(sortItems).forEach(item -> {
 			Blog blog = blogRepository.findOne(item.getId());
-			if (AuthUtil.hasSpaceAuth(blog.getSpace())
+			if (blog.getSpace() == null || AuthUtil.hasSpaceAuth(blog.getSpace())
 					&& item.getSort() != null & !item.getSort().equals(blog.getSort())) {
 				blog.setSort(item.getSort());
 				blogRepository.saveAndFlush(blog);

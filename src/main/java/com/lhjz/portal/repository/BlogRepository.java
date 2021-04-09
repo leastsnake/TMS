@@ -123,6 +123,11 @@ public interface BlogRepository extends JpaRepository<Blog, Long> {
 
 	@Transactional
 	@Modifying
+	@Query("update Blog b set b.space = ?1, b.dir = ?2, b.pid = ?3 where b.id = ?4")
+	int updateSpaceAndDirAndPid(Space space, Dir dir, Long pid, Long id);
+
+	@Transactional
+	@Modifying
 	@Query("update Blog b set b.privated = ?1 where b.id = ?2")
 	int updatePrivated(Boolean privated, Long id);
 
