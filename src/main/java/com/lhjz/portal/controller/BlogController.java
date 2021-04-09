@@ -3002,6 +3002,27 @@ public class BlogController extends BaseController {
 		return RespBody.succeed(blogs);
 	}
 
+	@PostMapping("hasChild/update")
+	@ResponseBody
+	public RespBody updateHasChild(@RequestParam("id") Long id) {
+
+		Blog blog = blogRepository.findOne(id);
+
+		if (blog == null) {
+			return RespBody.failed("对应博文不存在！");
+		}
+
+		if (!hasAuth(blog)) {
+			return RespBody.failed("权限不足！");
+		}
+
+		long cnt = blogRepository.countByPid(id);
+		blogRepository.updateHasChild(cnt > 0, id);
+
+		return RespBody.succeed(cnt > 0);
+
+	}
+
 	@PostMapping("pid/update")
 	@ResponseBody
 	public RespBody updatePid(@RequestParam("id") Long id, @RequestParam(value = "pid", required = false) Long pid) {
