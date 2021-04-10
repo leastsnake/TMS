@@ -57,6 +57,8 @@ public interface BlogRepository extends JpaRepository<Blog, Long> {
 	List<Blog> findByStatusNotAndTitleContainingIgnoreCaseAndOpenedTrueOrStatusNotAndContentContainingIgnoreCaseAndOpenedTrue(
 			Status status, String searchT, Status status2, String searchC, Sort sort);
 
+	List<Blog> findByStatusNotAndPidAndOpenedTrue(Status status, Long id);
+
 	List<Blog> findByStatusNotAndSpaceAndTitleContainingIgnoreCaseAndOpenedTrueOrStatusNotAndContentContainingIgnoreCaseAndOpenedTrue(
 			Status status, Space space, String searchT, Status status2, String searchC, Sort sort);
 
